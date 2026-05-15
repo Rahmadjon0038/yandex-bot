@@ -1,0 +1,32 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-yandex_bot}
+      POSTGRES_USER: ${POSTGRES_USER:-yandex_bot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+
+  bot:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - db
+    env_file:
+      - .env
+    environment:
+      PGHOST: db
+      PGPORT: 5432
+      PGDATABASE: ${POSTGRES_DB:-yandex_bot}
+      PGUSER: ${POSTGRES_USER:-yandex_bot}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-change_me}
+    volumes:
+      - ./user_prefs.json:/app/user_prefs.json
+
+volumes:
+  pg_data:
+
