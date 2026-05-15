@@ -80,7 +80,7 @@ Ushbu bot haydovchilar uchun quyidagi qulayliklarni taqdim etadi:
 
 Xizmatlardan foydalanish uchun profilingizni tasdiqlashingiz kerak. Iltimos, ekranning pastki qismidagi "📱 Raqamni yuborish" tugmasini bosing.`,
     sendPhone: "📱 Raqamni yuborish",
-    typePhone: "📝 Raqamni yozish",
+    // typePhone removed: only Telegram contact share is allowed
     onlyOwnContact: "Iltimos, faqat o'zingizning raqamingizni yuboring.",
     notFound:
       "Kechirasiz, siz yuborgan telefon raqami taksopark (Yandex) bazasida topilmadi.\n\n" +
@@ -105,7 +105,7 @@ Xizmatlardan foydalanish uchun profilingizni tasdiqlashingiz kerak. Iltimos, ekr
       `Saqlangan karta:\n💳 ${cardNumber}\n🧑‍💼 ${cardName}\n\nShu kartadan foydalansizmi yoki boshqa karta kiritasizmi?`,
     useSavedCardBtn: "✅ Shu karta",
     otherCardBtn: "✍️ Boshqa karta",
-    noPhoneSaved: "Balansni ko'rish uchun avval raqamingizni tasdiqlang (kontakt yuboring yoki raqam yozing).",
+    noPhoneSaved: "Balansni ko'rish uchun avval raqamingizni tasdiqlang (kontakt yuboring).",
     loginRequired:
       "Xizmatdan foydalanish uchun avval tizimga kiring.\n\n" +
       "Iltimos, \"📱 Raqamni yuborish\" tugmasi orqali telefon raqamingizni yuboring.",
@@ -189,7 +189,7 @@ Xizmatlardan foydalanish uchun profilingizni tasdiqlashingiz kerak. Iltimos, ekr
 
 Для использования сервиса необходимо подтвердить ваш профиль. Нажмите кнопку "📱 Отправить номер" внизу экрана.`,
     sendPhone: '📱 Отправить номер',
-    typePhone: '📝 Ввести номер',
+    // typePhone removed: only Telegram contact share is allowed
     onlyOwnContact: 'Пожалуйста, отправьте только свой номер.',
     notFound: 'К сожалению, ваш номер не найден в базе таксопарка. Пожалуйста, обратитесь к администратору.',
     genericError: 'Произошла ошибка. Пожалуйста, попробуйте позже.',
@@ -211,7 +211,7 @@ Xizmatlardan foydalanish uchun profilingizni tasdiqlashingiz kerak. Iltimos, ekr
       `Сохранённая карта:\n💳 ${cardNumber}\n🧑‍💼 ${cardName}\n\nИспользовать эту карту или ввести другую?`,
     useSavedCardBtn: "✅ Эта карта",
     otherCardBtn: "✍️ Другая карта",
-    noPhoneSaved: "Чтобы посмотреть баланс, сначала подтвердите номер (отправьте контакт или введите номер).",
+    noPhoneSaved: "Чтобы посмотреть баланс, сначала подтвердите номер (отправьте контакт).",
     loginRequired:
       "Чтобы продолжить, сначала войдите в систему.\n\n" +
       "Пожалуйста, отправьте номер через кнопку \"📱 Отправить номер\".",
@@ -295,7 +295,7 @@ This bot provides drivers with:
 
 To use the services, you need to verify your profile. Tap "📱 Send phone number" below.`,
     sendPhone: '📱 Send phone number',
-    typePhone: '📝 Type phone number',
+    // typePhone removed: only Telegram contact share is allowed
     onlyOwnContact: 'Please send only your own phone number.',
     notFound: 'Sorry, your number was not found in the taxi park database. Please contact the admin.',
     genericError: 'An error occurred. Please try again later.',
@@ -317,7 +317,7 @@ To use the services, you need to verify your profile. Tap "📱 Send phone numbe
       `Saved card:\n💳 ${cardNumber}\n🧑‍💼 ${cardName}\n\nUse this card or enter another one?`,
     useSavedCardBtn: "✅ Use this card",
     otherCardBtn: "✍️ Other card",
-    noPhoneSaved: "To view balance, please verify your phone first (send contact or type it).",
+    noPhoneSaved: "To view balance, please verify your phone first (send your contact).",
     loginRequired:
       "To continue, please log in first.\n\n" +
       "Send your phone number via \"📱 Send phone number\".",
@@ -1725,7 +1725,7 @@ bot.on('text', async (msg) => {
   }
 
   // Endi qo'lda raqam qabul qilinmaydi (faqat kontakt yuborish orqali)
-  return bot.sendMessage(chatId, await t(userId, 'sendPhone'));
+  return bot.sendMessage(chatId, await t(userId, 'loginRequired'), await getLoginKeyboard(userId));
 });
 
 console.log('Bot ishlamoqda...');
