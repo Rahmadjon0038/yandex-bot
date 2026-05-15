@@ -87,8 +87,8 @@ Xizmatlardan foydalanish uchun profilingizni tasdiqlashingiz kerak. Iltimos, ekr
       "Pul yechish / balansni ko‘rish faqat Telegram’da yuborgan raqamingiz taksoparkdagi haydovchi profilingizdagi raqam bilan 100% mos bo‘lsa ishlaydi.\n\n" +
       "Iltimos, adminga murojaat qiling va taksopark bazasidagi telefon raqamingizni yangilab berishini so‘rang. Raqam yangilangandan keyin botga qayta /start qiling va telefon raqamingizni yana yuboring — shunda yechib olish ishlaydi.",
     genericError: "Xatolik yuz berdi. Iltimos, keyinroq urinib ko'ring.",
-    profileMessage: ({ firstName, lastName, formattedPhone, formattedBalance, currency, brand, model, number }) =>
-      `👤 Ism: ${firstName} ${lastName}\n📱 Telefon: ${formattedPhone}\n💰 Balans: ${formattedBalance} ${currency}\n🚗 Avtomobil: ${brand} ${model} (${number})`,
+    profileMessage: ({ firstName, lastName, formattedPhone, formattedBalance, currency, brand, model, number, callsign, driverLicense }) =>
+      `👤 Ism: ${firstName}\n👥 Familiya: ${lastName}\n🆔 Haydovchi ID: ${callsign}\n📱 Telefon: ${formattedPhone}\n📋 Guvohnomasining raqami: ${driverLicense}\n\n🚗 Avtomobil:\n  • Marka: ${brand}\n  • Model: ${model}\n  • Davlat raqami: ${number}\n\n💰 Balans: ${formattedBalance} ${currency}`,
     withdrawBtn: "💸 Pul yechib olish",
     topupBtn: "➕ Balansni to'ldirish",
     withdrawInfo: "Pul yechib olish bo'limi hozircha ulanmagan. Keyingi bosqichda qo'shamiz.",
@@ -193,8 +193,8 @@ Xizmatlardan foydalanish uchun profilingizni tasdiqlashingiz kerak. Iltimos, ekr
     onlyOwnContact: 'Пожалуйста, отправьте только свой номер.',
     notFound: 'К сожалению, ваш номер не найден в базе таксопарка. Пожалуйста, обратитесь к администратору.',
     genericError: 'Произошла ошибка. Пожалуйста, попробуйте позже.',
-    profileMessage: ({ firstName, lastName, formattedPhone, formattedBalance, currency, brand, model, number }) =>
-      `👤 Имя: ${firstName} ${lastName}\n📱 Телефон: ${formattedPhone}\n💰 Баланс: ${formattedBalance} ${currency}\n🚗 Авто: ${brand} ${model} (${number})`,
+    profileMessage: ({ firstName, lastName, formattedPhone, formattedBalance, currency, brand, model, number, callsign, driverLicense }) =>
+      `👤 Имя: ${firstName}\n👥 Фамилия: ${lastName}\n🆔 ID водителя: ${callsign}\n📱 Телефон: ${formattedPhone}\n📋 Номер водительского удостоверения: ${driverLicense}\n\n🚗 Автомобиль:\n  • Марка: ${brand}\n  • Модель: ${model}\n  • Регистрационный номер: ${number}\n\n💰 Баланс: ${formattedBalance} ${currency}`,
     withdrawBtn: "💸 Вывод средств",
     topupBtn: "➕ Пополнить баланс",
     withdrawInfo: "Раздел вывода средств пока не подключён. Добавим на следующем этапе.",
@@ -299,8 +299,8 @@ To use the services, you need to verify your profile. Tap "📱 Send phone numbe
     onlyOwnContact: 'Please send only your own phone number.',
     notFound: 'Sorry, your number was not found in the taxi park database. Please contact the admin.',
     genericError: 'An error occurred. Please try again later.',
-    profileMessage: ({ firstName, lastName, formattedPhone, formattedBalance, currency, brand, model, number }) =>
-      `👤 Name: ${firstName} ${lastName}\n📱 Phone: ${formattedPhone}\n💰 Balance: ${formattedBalance} ${currency}\n🚗 Car: ${brand} ${model} (${number})`,
+    profileMessage: ({ firstName, lastName, formattedPhone, formattedBalance, currency, brand, model, number, callsign, driverLicense }) =>
+      `👤 Name: ${firstName}\n👥 Last Name: ${lastName}\n🆔 Driver ID: ${callsign}\n📱 Phone: ${formattedPhone}\n📋 Driver License: ${driverLicense}\n\n🚗 Vehicle:\n  • Brand: ${brand}\n  • Model: ${model}\n  • Registration Number: ${number}\n\n💰 Balance: ${formattedBalance} ${currency}`,
     withdrawBtn: "💸 Withdraw",
     topupBtn: "➕ Top up balance",
     withdrawInfo: "Withdraw feature is not connected yet. We'll add it in the next step.",
@@ -717,11 +717,9 @@ function formatCardNumber(digits) {
   return clean.replace(/(.{4})/g, '$1 ').trim();
 }
 
+// YANGI HOLATI (Hamma raqamni to'liq ko'rsatadigan)
 function maskCardNumber(digits) {
-  const clean = normalizeCardNumber(digits);
-  if (clean.length < 8) return formatCardNumber(clean);
-  const masked = `${clean.slice(0, 4)}****${clean.slice(-4)}`;
-  return formatCardNumber(masked);
+  return formatCardNumber(digits);
 }
 
 function parseAmount(text) {
@@ -844,6 +842,10 @@ async function searchAndDisplayDriver(chatId, userId, formattedPhone) {
 
     if (foundDriver) {
       // Haydovchi topildi: ma'lumotlarni yuborish
+      console.log('=== HAYDOVCHI BARCHA MA\'LUMOTLARI ===');
+      console.log(JSON.stringify(foundDriver, null, 2));
+      console.log('===================================');
+      
       const profile = foundDriver.driver_profile;
       const accounts = foundDriver.accounts || [];
       const car = foundDriver.car || {};
@@ -856,6 +858,9 @@ async function searchAndDisplayDriver(chatId, userId, formattedPhone) {
         ? parseFloat(balance).toLocaleString(i18n[lang].locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
         : 'Noma\'lum';
 
+      const driverLicense = profile.driver_license?.normalized_number || 'Noma\'lum';
+      const callsign = car.callsign || 'Noma\'lum';
+      
       const message = i18n[lang].profileMessage({
         firstName: profile.first_name,
         lastName: profile.last_name,
@@ -865,6 +870,8 @@ async function searchAndDisplayDriver(chatId, userId, formattedPhone) {
         brand: car.brand,
         model: car.model,
         number: car.number,
+        callsign: callsign,
+        driverLicense: driverLicense,
       });
 
       const actionOpts = {
