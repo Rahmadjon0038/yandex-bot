@@ -1,0 +1,23 @@
+{
+  "name": "yandex-bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "bot.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node bot.js",
+    "dev": "nodemon bot.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "axios": "^1.16.0",
+    "dotenv": "^17.4.2",
+    "node-telegram-bot-api": "^0.67.0",
+    "nodemon": "^3.1.14",
+    "pg": "^8.16.0",
+    "telegraf": "^4.16.3"
+  }
+}

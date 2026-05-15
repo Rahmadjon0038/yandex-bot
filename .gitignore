@@ -1,0 +1,32 @@
+# Dependency-lar
+node_modules/
+
+# Maxfiy ma'lumotlar (API KEY, DATABASE URL)
+.env
+.env.local
+.env.development.local
+
+
+# Build natijalari
+
+.next/
+out/
+build/
+dist/
+
+# MacOS tizim fayllari
+.DS_Store
+
+# Loglar va debug ma'lumotlari
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+*.log
+
+# Ma'lumotlar bazasi va Docker
+pgdata/
+docker-compose.override.yml
+
+# Local bot state
+user_prefs.json

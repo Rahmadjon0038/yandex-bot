@@ -1,0 +1,7 @@
+{
+  "ignore": [
+    "user_prefs.json",
+    ".env",
+    ".env.*"
+  ]
+}
