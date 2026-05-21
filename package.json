@@ -17,7 +17,7 @@
     "dotenv": "^17.4.2",
     "node-telegram-bot-api": "^0.67.0",
     "nodemon": "^3.1.14",
-    "pg": "^8.16.0",
+    "sqlite3": "^5.1.7",
     "telegraf": "^4.16.3"
   }
 }

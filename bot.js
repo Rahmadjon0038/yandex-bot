@@ -6,8 +6,63 @@ const crypto = require('crypto');
 require('dotenv').config();
 const yandexFleet = require('./config/yandexFleet');
 
+function normalizeBotToken(raw) {
+  let token = String(raw || '').trim();
+  if (!token) return null;
+
+  // Common .env patterns: BOTTOKEN="123:ABC" or BOTTOKEN='123:ABC'
+  if (
+    (token.startsWith('"') && token.endsWith('"') && token.length >= 2) ||
+    (token.startsWith("'") && token.endsWith("'") && token.length >= 2)
+  ) {
+    token = token.slice(1, -1).trim();
+  }
+
+  // Defensive: remove stray CR from Windows line endings.
+  token = token.replace(/\r/g, '');
+
+  return token || null;
+}
+
+function validateBotToken(token) {
+  // Telegram token shape: "<digits>:<url-safe chars>"
+  if (/\s/.test(token)) return { ok: false, reason: 'contains whitespace' };
+  if (!/^\d+:[A-Za-z0-9_-]+$/.test(token)) {
+    const bad = [];
+    for (let i = 0; i < token.length; i++) {
+      const ch = token[i];
+      if (!/[0-9A-Za-z:_-]/.test(ch)) bad.push({ i, code: ch.codePointAt(0) });
+    }
+    return { ok: false, reason: `contains invalid characters at positions: ${bad.map((b) => `${b.i}(U+${b.code.toString(16).toUpperCase().padStart(4, '0')})`).join(', ') || 'unknown'}` };
+  }
+  return { ok: true };
+}
+
 // Bot tokenini .env faylidan olish
-const bot = new TelegramBot(process.env.BOTTOKEN, { polling: true });
+let botToken = normalizeBotToken(process.env.BOTTOKEN);
+if (!botToken) {
+  throw new Error("BOTTOKEN noto‘g‘ri: bo‘sh. `.env` dagi `BOTTOKEN=...` ni tekshiring.");
+}
+
+let tokenCheck = validateBotToken(botToken);
+if (!tokenCheck.ok) {
+  const cleaned = botToken.replace(/[^0-9A-Za-z:_-]/g, '');
+  if (cleaned && cleaned !== botToken) {
+    const retry = validateBotToken(cleaned);
+    if (retry.ok) {
+      console.warn('BOTTOKEN ichidan keraksiz/invisible belgilar olib tashlandi (auto-fix). `.env` dagi tokenni qayta kiritish tavsiya etiladi.');
+      botToken = cleaned;
+      tokenCheck = retry;
+    }
+  }
+}
+if (!tokenCheck.ok) {
+  throw new Error(
+    `BOTTOKEN noto‘g‘ri: ${tokenCheck.reason}. `.env` dagi BOTTOKEN qiymatini qayta yozib chiqing (ko‘pincha invisible belgilar yoki qo‘shtirnoqlar sabab bo‘ladi).`
+  );
+}
+
+const bot = new TelegramBot(botToken, { polling: true });
 
 // Yandex API uchun konfiguratsiya
 const YANDEX_API_URL = 'https://fleet-api.taxi.yandex.net/v1/parks/driver-profiles/list';
@@ -22,7 +77,7 @@ let dbReady = false;
 try {
   db = require('./config/db');
 } catch (e) {
-  console.error('DB modulini yuklab bo‘lmadi (psql o‘rnatilmagan bo‘lishi mumkin).', e?.message || e);
+  console.error('DB modulini yuklab bo‘lmadi (sqlite3 o‘rnatilmagan bo‘lishi mumkin).', e?.message || e);
 }
 
 async function initDb() {
@@ -41,10 +96,19 @@ initDb();
 bot.on('polling_error', (err) => {
   // Ko'pincha bu bir vaqtning o'zida 2 ta bot process ishlaganda (409) chiqadi
   console.error('polling_error:', err?.code, err?.message || err);
+  if (err?.stack) console.error(err.stack);
 });
 
 bot.on('webhook_error', (err) => {
   console.error('webhook_error:', err?.code, err?.message || err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('unhandledRejection:', reason?.stack || reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('uncaughtException:', err?.stack || err);
 });
 
 const PREFS_PATH = path.join(__dirname, 'user_prefs.json');
@@ -167,7 +231,7 @@ Xizmatlardan foydalanish uchun profilingizni tasdiqlashingiz kerak. Iltimos, ekr
     adminBackBtn: "⬅️ Orqaga",
     adminHistoryBtn: "📜 Tranzaksiyalar tarixi",
     adminNoHistory: "Bu haydovchi bo‘yicha tranzaksiyalar topilmadi.",
-    adminDbRequired: "DB ulanmagan. Admin panel uchun PostgreSQL kerak.",
+    adminDbRequired: "DB ulanmagan. Admin panel uchun SQLite3 kerak.",
     status_pending: "Kutilmoqda",
     status_await_receipt: "Chek kutilmoqda",
     status_await_reject_reason: "Sabab kutilmoqda",
@@ -273,7 +337,7 @@ Xizmatlardan foydalanish uchun profilingizni tasdiqlashingiz kerak. Iltimos, ekr
     adminBackBtn: "⬅️ Назад",
     adminHistoryBtn: "📜 История транзакций",
     adminNoHistory: "По этому водителю транзакции не найдены.",
-    adminDbRequired: "DB не подключена. Для админ-панели нужен PostgreSQL.",
+    adminDbRequired: "DB не подключена. Для админ-панели нужен SQLite3.",
     status_pending: "В ожидании",
     status_await_receipt: "Ожидается чек",
     status_await_reject_reason: "Ожидается причина",
@@ -379,7 +443,7 @@ To use the services, you need to verify your profile. Tap "📱 Send phone numbe
     adminBackBtn: "⬅️ Back",
     adminHistoryBtn: "📜 Transactions history",
     adminNoHistory: "No transactions found for this driver.",
-    adminDbRequired: "DB is not connected. PostgreSQL is required for admin panel.",
+    adminDbRequired: "DB is not connected. SQLite3 is required for admin panel.",
     status_pending: "Pending",
     status_await_receipt: "Awaiting receipt",
     status_await_reject_reason: "Awaiting reason",
@@ -1185,157 +1249,157 @@ async function sendAdminDriverHistory(chatId, adminId, phoneDigits, page) {
 }
 
 bot.on('callback_query', async (query) => {
-  const chatId = query.message?.chat?.id;
-  const userId = query.from.id;
-  const data = query.data || '';
-
-  if (!chatId) {
+  try {
+    // Ack fast to stop Telegram spinner.
     try { await bot.answerCallbackQuery(query.id); } catch {}
-    return;
-  }
 
-  if (data.startsWith('lang:')) {
-    const lang = data.split(':')[1];
-    if (lang === 'uz' || lang === 'ru' || lang === 'en') {
-      await setLang(userId, lang);
-      try { await bot.answerCallbackQuery(query.id); } catch {}
-      if (ADMIN_USER_IDS.has(userId)) {
-        await sendAdminMenu(chatId, userId);
-      } else {
-        await sendWelcome(chatId, userId);
+    const chatId = query.message?.chat?.id;
+    const userId = query.from.id;
+    const data = query.data || '';
+
+    if (!chatId) return;
+    console.log(`[CB] chatId=${chatId} userId=${userId} data="${data}"`);
+
+    if (data.startsWith('lang:')) {
+      const lang = data.split(':')[1];
+      if (lang === 'uz' || lang === 'ru' || lang === 'en') {
+        await setLang(userId, lang);
+        try {
+          if (query.message?.message_id) {
+            await bot.editMessageReplyMarkup(
+              { inline_keyboard: [] },
+              { chat_id: chatId, message_id: query.message.message_id }
+            );
+          }
+        } catch {}
+        if (ADMIN_USER_IDS.has(userId)) {
+          await sendAdminMenu(chatId, userId);
+        } else {
+          await sendWelcome(chatId, userId);
+        }
+        return;
       }
-      return;
     }
-  }
 
-  if (data.startsWith('user:withdraw:')) {
-    try { await bot.answerCallbackQuery(query.id); } catch {}
-    if (data === 'user:withdraw:use_saved') {
-      const st = getWithdrawState(userId);
-      if (st && st.step === 'choose_saved' && st.cardNumber && st.cardName) {
-        setWithdrawState(userId, { step: 'amount', cardNumber: st.cardNumber, cardName: st.cardName });
-        await bot.sendMessage(chatId, await t(userId, 'enterWithdrawAmount'));
+    if (data.startsWith('user:withdraw:')) {
+      if (data === 'user:withdraw:use_saved') {
+        const st = getWithdrawState(userId);
+        if (st && st.step === 'choose_saved' && st.cardNumber && st.cardName) {
+          setWithdrawState(userId, { step: 'amount', cardNumber: st.cardNumber, cardName: st.cardName });
+          await bot.sendMessage(chatId, await t(userId, 'enterWithdrawAmount'));
+        }
+        return;
       }
-      return;
-    }
-    if (data === 'user:withdraw:other_card') {
-      setWithdrawState(userId, { step: 'card' });
-      await bot.sendMessage(chatId, await t(userId, 'enterCardNumber'));
-      return;
-    }
-  }
-
-  if (data.startsWith('user:cards:')) {
-    try { await bot.answerCallbackQuery(query.id); } catch {}
-    if (data === 'user:cards:add') {
-      setCardFlowState(userId, { step: 'card' });
-      await bot.sendMessage(chatId, await t(userId, 'enterCardNumber'));
-      return;
-    }
-    if (data.startsWith('user:cards:set_default:')) {
-      if (!dbReady) return;
-      const id = Number(data.split(':')[3]);
-      if (!Number.isFinite(id)) return;
-      await db.setDefaultCardById(userId, id);
-      await bot.sendMessage(chatId, await t(userId, 'cardSaved'));
-      await sendMyCards(chatId, userId);
-      return;
-    }
-  }
-
-  if (data === 'noop') {
-    try { await bot.answerCallbackQuery(query.id); } catch {}
-    return;
-  }
-
-  if (data === 'admin:menu') {
-    if (!ADMIN_USER_IDS.has(userId)) return;
-    try { await bot.answerCallbackQuery(query.id); } catch {}
-    const opts = {
-      reply_markup: {
-        inline_keyboard: [[{ text: await t(userId, 'adminDriversBtn'), callback_data: 'admin:drivers:page:0' }]],
-      },
-    };
-    await bot.sendMessage(chatId, await t(userId, 'adminPanelTitle'), opts);
-    return;
-  }
-
-  if (data.startsWith('admin:drivers:page:')) {
-    if (!ADMIN_USER_IDS.has(userId)) return;
-    try { await bot.answerCallbackQuery(query.id); } catch {}
-    const p = Number(data.split(':')[3] || 0);
-    await sendAdminDriversPage(chatId, userId, p);
-    return;
-  }
-
-  if (data.startsWith('admin:driver:') && data.endsWith(':view')) {
-    if (!ADMIN_USER_IDS.has(userId)) return;
-    try { await bot.answerCallbackQuery(query.id); } catch {}
-    const phoneDigits = data.split(':')[2];
-    await sendAdminDriverView(chatId, userId, phoneDigits);
-    return;
-  }
-
-  if (data.startsWith('admin:driver:') && data.includes(':history:page:')) {
-    if (!ADMIN_USER_IDS.has(userId)) return;
-    try { await bot.answerCallbackQuery(query.id); } catch {}
-    const parts = data.split(':');
-    const phoneDigits = parts[2];
-    const p = Number(parts[5] || 0);
-    await sendAdminDriverHistory(chatId, userId, phoneDigits, p);
-    return;
-  }
-
-  if (data === 'action:withdraw') {
-    try { await bot.answerCallbackQuery(query.id); } catch {}
-    await startWithdraw(chatId, userId);
-    return;
-  }
-
-  if (data.startsWith('admin:withdraw:')) {
-    const token = data.split(':')[2];
-    const action = data.split(':')[3]; // approve|reject
-
-    if (!ADMIN_USER_IDS.has(userId)) {
-      try { await bot.answerCallbackQuery(query.id); } catch {}
-      return;
-    }
-
-    const req = dbReady ? await db.getWithdrawal(token) : pendingWithdrawals.get(token);
-    if (!req) {
-      try { await bot.answerCallbackQuery(query.id, { text: 'Not found', show_alert: true }); } catch {}
-      return;
-    }
-
-    try { await bot.answerCallbackQuery(query.id); } catch {}
-
-    if (action === 'approve') {
-      const targetUserId = Number(req.user_id ?? req.userId);
-      if (dbReady) {
-        await db.updateWithdrawal(token, { status: 'await_receipt', approved_by: userId, approved_at: new Date() });
-      } else {
-        pendingWithdrawals.set(token, { ...req, status: 'await_receipt', approvedBy: userId });
+      if (data === 'user:withdraw:other_card') {
+        setWithdrawState(userId, { step: 'card' });
+        await bot.sendMessage(chatId, await t(userId, 'enterCardNumber'));
+        return;
       }
-      adminStates.set(userId, { step: 'await_receipt', token });
+    }
 
-      bot.sendMessage(targetUserId, await t(targetUserId, 'withdrawApproved'));
-      bot.sendMessage(chatId, await t(userId, 'adminAskReceipt'));
+    if (data.startsWith('user:cards:')) {
+      if (data === 'user:cards:add') {
+        setCardFlowState(userId, { step: 'card' });
+        await bot.sendMessage(chatId, await t(userId, 'enterCardNumber'));
+        return;
+      }
+      if (data.startsWith('user:cards:set_default:')) {
+        if (!dbReady) return;
+        const id = Number(data.split(':')[3]);
+        if (!Number.isFinite(id)) return;
+        await db.setDefaultCardById(userId, id);
+        await bot.sendMessage(chatId, await t(userId, 'cardSaved'));
+        await sendMyCards(chatId, userId);
+        return;
+      }
+    }
+
+    if (data === 'noop') return;
+
+    if (data === 'admin:menu') {
+      if (!ADMIN_USER_IDS.has(userId)) return;
+      const opts = {
+        reply_markup: {
+          inline_keyboard: [[{ text: await t(userId, 'adminDriversBtn'), callback_data: 'admin:drivers:page:0' }]],
+        },
+      };
+      await bot.sendMessage(chatId, await t(userId, 'adminPanelTitle'), opts);
       return;
     }
-    if (action === 'reject') {
-      if (dbReady) {
-        await db.updateWithdrawal(token, { status: 'await_reject_reason' });
-      } else {
-        pendingWithdrawals.set(token, { ...req, status: 'await_reject_reason' });
-      }
-      adminStates.set(userId, { step: 'reject_reason', token });
 
-      bot.sendMessage(chatId, await t(userId, 'adminAskRejectReason'));
+    if (data.startsWith('admin:drivers:page:')) {
+      if (!ADMIN_USER_IDS.has(userId)) return;
+      const p = Number(data.split(':')[3] || 0);
+      await sendAdminDriversPage(chatId, userId, p);
       return;
+    }
+
+    if (data.startsWith('admin:driver:') && data.endsWith(':view')) {
+      if (!ADMIN_USER_IDS.has(userId)) return;
+      const phoneDigits = data.split(':')[2];
+      await sendAdminDriverView(chatId, userId, phoneDigits);
+      return;
+    }
+
+    if (data.startsWith('admin:driver:') && data.includes(':history:page:')) {
+      if (!ADMIN_USER_IDS.has(userId)) return;
+      const parts = data.split(':');
+      const phoneDigits = parts[2];
+      const p = Number(parts[5] || 0);
+      await sendAdminDriverHistory(chatId, userId, phoneDigits, p);
+      return;
+    }
+
+    if (data === 'action:withdraw') {
+      await startWithdraw(chatId, userId);
+      return;
+    }
+
+    if (data.startsWith('admin:withdraw:')) {
+      const token = data.split(':')[2];
+      const action = data.split(':')[3]; // approve|reject
+
+      if (!ADMIN_USER_IDS.has(userId)) return;
+
+      const req = dbReady ? await db.getWithdrawal(token) : pendingWithdrawals.get(token);
+      if (!req) {
+        try { await bot.answerCallbackQuery(query.id, { text: 'Not found', show_alert: true }); } catch {}
+        return;
+      }
+
+      if (action === 'approve') {
+        const targetUserId = Number(req.user_id ?? req.userId);
+        if (dbReady) {
+          await db.updateWithdrawal(token, { status: 'await_receipt', approved_by: userId, approved_at: new Date() });
+        } else {
+          pendingWithdrawals.set(token, { ...req, status: 'await_receipt', approvedBy: userId });
+        }
+        adminStates.set(userId, { step: 'await_receipt', token });
+
+        bot.sendMessage(targetUserId, await t(targetUserId, 'withdrawApproved'));
+        bot.sendMessage(chatId, await t(userId, 'adminAskReceipt'));
+        return;
+      }
+      if (action === 'reject') {
+        if (dbReady) {
+          await db.updateWithdrawal(token, { status: 'await_reject_reason' });
+        } else {
+          pendingWithdrawals.set(token, { ...req, status: 'await_reject_reason' });
+        }
+        adminStates.set(userId, { step: 'reject_reason', token });
+
+        bot.sendMessage(chatId, await t(userId, 'adminAskRejectReason'));
+        return;
+      }
+    }
+  } catch (e) {
+    console.error('callback_query error:', e?.stack || e?.message || e);
+    const chatId = query.message?.chat?.id;
+    const userId = query.from?.id;
+    if (chatId && userId) {
+      try { await bot.sendMessage(chatId, await t(userId, 'genericError')); } catch {}
     }
   }
-
-  try { await bot.answerCallbackQuery(query.id); } catch {}
 });
 
 async function adminFinishReject(adminId, token, reason) {

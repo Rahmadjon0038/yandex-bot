@@ -24,7 +24,9 @@ yarn-error.log*
 logs/
 *.log
 
-# Ma'lumotlar bazasi va Docker
+# Ma'lumotlar bazasi
+data/
+*.sqlite3
 pgdata/
 docker-compose.override.yml
 
