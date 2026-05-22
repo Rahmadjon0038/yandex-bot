@@ -1129,12 +1129,6 @@ bot.onText(/\/admin/, async (msg) => {
   await bot.sendMessage(chatId, await t(userId, 'adminPanelTitle'), opts);
 });
 
-bot.onText(/\/id/, async (msg) => {
-  const chatId = msg.chat.id;
-  const userId = msg.from.id;
-  await bot.sendMessage(chatId, `Telegram user_id: ${userId}`);
-});
-
 async function sendAdminDriversPage(chatId, adminId, page) {
   const pageSize = 10;
   const p = Math.max(0, Number(page) || 0);
