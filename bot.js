@@ -68,7 +68,7 @@ const bot = new TelegramBot(botToken, { polling: true });
 const YANDEX_API_URL = 'https://fleet-api.taxi.yandex.net/v1/parks/driver-profiles/list';
 const PARK_ID = process.env.YANDEX_PARK_ID || '98d550d2a0684e90a6a59577e43d2f46';
 const CLIENT_ID = process.env.YANDEX_CLIENT_ID || 'taxi/park/' + PARK_ID;
-const ADMIN_USER_IDS = new Set([6971915586]);
+const ADMIN_USER_IDS = new Set([6971915586,5685157267]);
 const pendingWithdrawals = new Map(); // legacy/fallback when DB is off
 const adminStates = new Map(); // adminId -> { step: 'reject_reason'|'await_receipt', token }
 
@@ -193,11 +193,14 @@ Xizmatlardan foydalanish uchun profilingizni tasdiqlashingiz kerak. Iltimos, ekr
     withdrawRejectedWithReason: (reason) => `Admin rad etdi.\nSabab: ${reason}`,
     withdrawReceiptCaption: "✅ Pul yechish amaliyoti bajarildi. Chek:",
     adminNewWithdraw: ({
-      driverName,
-      telegramUserId,
+      driverFirstName,
+      driverLastName,
+      driverLicense,
+      driverId,
       phone,
-      carText,
-      yandexProfileId,
+      carBrand,
+      carModel,
+      carNumber,
       contractorProfileId,
       cardNumber,
       cardName,
@@ -206,12 +209,16 @@ Xizmatlardan foydalanish uchun profilingizni tasdiqlashingiz kerak. Iltimos, ekr
       amountFormatted,
     }) =>
       `🧾 Yangi pul yechish so'rovi\n\n` +
-      `👤 Haydovchi: ${driverName || "Noma'lum"}\n` +
+      `👤 Ism: ${driverFirstName || "Noma'lum"}\n` +
+      `👥 Familiya: ${driverLastName || "Noma'lum"}\n` +
+      `🆔 Haydovchi ID: ${driverId || '-'}\n` +
       `📱 Telefon: ${phone || '-'}\n` +
-      (carText ? `🚗 Avto: ${carText}\n` : '') +
-      (yandexProfileId ? `🆔 Yandex ID: ${yandexProfileId}\n` : '') +
+      `📋 Guvohnomaning raqami: ${driverLicense || '-'}\n` +
+      `🚗 Avtomobil:\n` +
+      `  • Marka: ${carBrand || '-'}\n` +
+      `  • Model: ${carModel || '-'}\n` +
+      `  • Davlat raqami: ${carNumber || '-'}\n` +
       (contractorProfileId ? `🧾 Contractor ID: ${contractorProfileId}\n` : '') +
-      `🟦 Telegram ID: ${telegramUserId}\n` +
       `💳 Karta: ${cardNumber}\n` +
       `🧑‍💼 Karta Egasi: ${cardName}\n` +
       `💰 Balans: ${formattedBalance} ${currency}\n` +
@@ -299,11 +306,14 @@ Xizmatlardan foydalanish uchun profilingizni tasdiqlashingiz kerak. Iltimos, ekr
     withdrawRejectedWithReason: (reason) => `Администратор отклонил запрос.\nПричина: ${reason}`,
     withdrawReceiptCaption: "✅ Операция выполнена. Чек:",
     adminNewWithdraw: ({
-      driverName,
-      telegramUserId,
+      driverFirstName,
+      driverLastName,
+      driverLicense,
+      driverId,
       phone,
-      carText,
-      yandexProfileId,
+      carBrand,
+      carModel,
+      carNumber,
       contractorProfileId,
       cardNumber,
       cardName,
@@ -312,12 +322,16 @@ Xizmatlardan foydalanish uchun profilingizni tasdiqlashingiz kerak. Iltimos, ekr
       amountFormatted,
     }) =>
       `🧾 Новый запрос на вывод средств\n\n` +
-      `👤 Водитель: ${driverName || 'Неизвестно'}\n` +
+      `👤 Имя: ${driverFirstName || 'Неизвестно'}\n` +
+      `👥 Фамилия: ${driverLastName || 'Неизвестно'}\n` +
+      `🆔 ID водителя: ${driverId || '-'}\n` +
       `📱 Телефон: ${phone || '-'}\n` +
-      (carText ? `🚗 Авто: ${carText}\n` : '') +
-      (yandexProfileId ? `🆔 Yandex ID: ${yandexProfileId}\n` : '') +
+      `📋 Номер водительского удостоверения: ${driverLicense || '-'}\n` +
+      `🚗 Автомобиль:\n` +
+      `  • Марка: ${carBrand || '-'}\n` +
+      `  • Модель: ${carModel || '-'}\n` +
+      `  • Регистрационный номер: ${carNumber || '-'}\n` +
       (contractorProfileId ? `🧾 Contractor ID: ${contractorProfileId}\n` : '') +
-      `🟦 Telegram ID: ${telegramUserId}\n` +
       `💳 Карта: ${cardNumber}\n` +
       `🧑‍💼 Владелец: ${cardName}\n` +
       `💰 Баланс: ${formattedBalance} ${currency}\n` +
@@ -405,11 +419,14 @@ To use the services, you need to verify your profile. Tap "📱 Send phone numbe
     withdrawRejectedWithReason: (reason) => `Admin rejected the request.\nReason: ${reason}`,
     withdrawReceiptCaption: "✅ Completed. Receipt:",
     adminNewWithdraw: ({
-      driverName,
-      telegramUserId,
+      driverFirstName,
+      driverLastName,
+      driverLicense,
+      driverId,
       phone,
-      carText,
-      yandexProfileId,
+      carBrand,
+      carModel,
+      carNumber,
       contractorProfileId,
       cardNumber,
       cardName,
@@ -418,12 +435,16 @@ To use the services, you need to verify your profile. Tap "📱 Send phone numbe
       amountFormatted,
     }) =>
       `🧾 New withdraw request\n\n` +
-      `👤 Driver: ${driverName || 'Unknown'}\n` +
+      `👤 First Name: ${driverFirstName || 'Unknown'}\n` +
+      `👥 Last Name: ${driverLastName || 'Unknown'}\n` +
+      `🆔 Driver ID: ${driverId || '-'}\n` +
       `📱 Phone: ${phone || '-'}\n` +
-      (carText ? `🚗 Car: ${carText}\n` : '') +
-      (yandexProfileId ? `🆔 Yandex ID: ${yandexProfileId}\n` : '') +
+      `📋 Driver License: ${driverLicense || '-'}\n` +
+      `🚗 Vehicle:\n` +
+      `  • Brand: ${carBrand || '-'}\n` +
+      `  • Model: ${carModel || '-'}\n` +
+      `  • Registration Number: ${carNumber || '-'}\n` +
       (contractorProfileId ? `🧾 Contractor ID: ${contractorProfileId}\n` : '') +
-      `🟦 Telegram ID: ${telegramUserId}\n` +
       `💳 Card: ${cardNumber}\n` +
       `🧑‍💼 Name: ${cardName}\n` +
       `💰 Balance: ${formattedBalance} ${currency}\n` +
@@ -1722,25 +1743,32 @@ bot.on('text', async (msg) => {
 
       // Admin'ga yuborish
       let driverName = null;
-      let carText = null;
-      let yandexProfileId = null;
+      let driverFirstName = null;
+      let driverLastName = null;
+      let driverLicense = null;
+      let carBrand = null;
+      let carModel = null;
+      let carNumber = null;
       let contractorProfileId = null;
+      let driverId = null;
       try {
         const driverProfiles = await fetchDriverProfiles();
         const foundDriver = findDriverByPhone(driverProfiles, phone);
         const profile = foundDriver?.driver_profile || null;
         const car = foundDriver?.car || null;
         driverName = profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : null;
-        yandexProfileId = profile?.id ? String(profile.id) : null;
+        driverFirstName = profile?.first_name || null;
+        driverLastName = profile?.last_name || null;
+        driverLicense = profile?.driver_license?.normalized_number || profile?.driver_license?.number || null;
+        driverId = car?.callsign ? String(car.callsign) : null;
         contractorProfileId =
           (foundDriver?.contractor_profile_id || foundDriver?.contractorProfileId || profile?.contractor_profile_id || profile?.contractorProfileId || null)
             ? String(foundDriver?.contractor_profile_id || foundDriver?.contractorProfileId || profile?.contractor_profile_id || profile?.contractorProfileId)
             : null;
-        if (car && (car.brand || car.model || car.number)) {
-          const b = car.brand || '';
-          const m = car.model || '';
-          const n = car.number ? ` (${car.number})` : '';
-          carText = `${b} ${m}`.trim() + n;
+        if (car) {
+          carBrand = car.brand || null;
+          carModel = car.model || null;
+          carNumber = car.number || null;
         }
       } catch (e) {
         console.error('Driver info fetch failed:', e?.message || e);
@@ -1748,10 +1776,14 @@ bot.on('text', async (msg) => {
 
       const adminMsg = i18n[lang].adminNewWithdraw({
         driverName,
-        telegramUserId: userId,
+        driverFirstName,
+        driverLastName,
+        driverLicense,
+        driverId,
         phone,
-        carText,
-        yandexProfileId,
+        carBrand,
+        carModel,
+        carNumber,
         contractorProfileId,
         cardNumber: formatCardNumber(withdrawState.cardNumber),
         cardName: withdrawState.cardName,
